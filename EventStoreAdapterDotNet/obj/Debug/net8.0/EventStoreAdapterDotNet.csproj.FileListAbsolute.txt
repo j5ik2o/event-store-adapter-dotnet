@@ -1,0 +1,11 @@
+/Users/j5ik2o/Sources/EventStoreAdapterDotNet/EventStoreAdapterDotNet/obj/Debug/net8.0/EventStoreAdapterDotNet.GeneratedMSBuildEditorConfig.editorconfig
+/Users/j5ik2o/Sources/EventStoreAdapterDotNet/EventStoreAdapterDotNet/obj/Debug/net8.0/EventStoreAdapterDotNet.AssemblyInfoInputs.cache
+/Users/j5ik2o/Sources/EventStoreAdapterDotNet/EventStoreAdapterDotNet/obj/Debug/net8.0/EventStoreAdapterDotNet.AssemblyInfo.cs
+/Users/j5ik2o/Sources/EventStoreAdapterDotNet/EventStoreAdapterDotNet/obj/Debug/net8.0/EventStoreAdapterDotNet.csproj.CoreCompileInputs.cache
+/Users/j5ik2o/Sources/EventStoreAdapterDotNet/EventStoreAdapterDotNet/bin/Debug/net8.0/EventStoreAdapterDotNet.deps.json
+/Users/j5ik2o/Sources/EventStoreAdapterDotNet/EventStoreAdapterDotNet/bin/Debug/net8.0/EventStoreAdapterDotNet.dll
+/Users/j5ik2o/Sources/EventStoreAdapterDotNet/EventStoreAdapterDotNet/bin/Debug/net8.0/EventStoreAdapterDotNet.pdb
+/Users/j5ik2o/Sources/EventStoreAdapterDotNet/EventStoreAdapterDotNet/obj/Debug/net8.0/EventStoreAdapterDotNet.dll
+/Users/j5ik2o/Sources/EventStoreAdapterDotNet/EventStoreAdapterDotNet/obj/Debug/net8.0/refint/EventStoreAdapterDotNet.dll
+/Users/j5ik2o/Sources/EventStoreAdapterDotNet/EventStoreAdapterDotNet/obj/Debug/net8.0/EventStoreAdapterDotNet.pdb
+/Users/j5ik2o/Sources/EventStoreAdapterDotNet/EventStoreAdapterDotNet/obj/Debug/net8.0/ref/EventStoreAdapterDotNet.dll
