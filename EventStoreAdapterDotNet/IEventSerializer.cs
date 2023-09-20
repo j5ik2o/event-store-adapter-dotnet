@@ -10,5 +10,5 @@ public interface IEventSerializer<out TAid, TE>
     byte[] Serialize([NotNull] TE @event);
 
     [return: NotNull]
-    TE Deserialize([NotNull] byte[] bytes, [NotNull] Type clazz);
+    TE Deserialize([NotNull] byte[] bytes);
 }

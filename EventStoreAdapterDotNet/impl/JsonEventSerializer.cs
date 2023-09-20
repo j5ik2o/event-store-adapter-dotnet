@@ -1,4 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Text;
+using System.Text.Json;
 
 namespace EventStoreAdapterDotNet.impl;
 
@@ -9,12 +11,14 @@ public class JsonEventSerializer<TAid, TE> : IEventSerializer<TAid, TE>
     [return: NotNull]
     public byte[] Serialize([NotNull] TE @event)
     {
-        throw new NotImplementedException();
+        var jsonString = JsonSerializer.Serialize(@event);
+        return Encoding.UTF8.GetBytes(jsonString); 
     }
     
     [return: NotNull]
-    public TE Deserialize([NotNull] byte[] bytes, [NotNull] Type clazz)
+    public TE Deserialize([NotNull] byte[] bytes)
     {
-        throw new NotImplementedException();
+        var jsonString = Encoding.UTF8.GetString(bytes);
+        return JsonSerializer.Deserialize<TE>(jsonString) ?? throw new InvalidOperationException();
     }
 }
