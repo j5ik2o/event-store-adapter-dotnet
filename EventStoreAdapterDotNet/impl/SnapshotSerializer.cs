@@ -8,7 +8,6 @@ public class SnapshotSerializer<TAid, TA> : ISnapshotSerializer<TAid, TA>
     where TAid : IAggregateId
     where TA : IAggregate<TA, TAid>
 {
-    [return: NotNull]
     public byte[] Serialize([NotNull] TA aggregate)
     {
         var jsonString = JsonSerializer.Serialize(aggregate);

@@ -6,7 +6,6 @@ public interface IEventSerializer<out TAid, TE>
     where TAid : IAggregateId
     where TE : IEvent<TAid>
 {
-    [return: NotNull]
     byte[] Serialize([NotNull] TE @event);
 
     [return: NotNull]

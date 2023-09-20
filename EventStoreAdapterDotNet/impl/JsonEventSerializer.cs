@@ -8,7 +8,6 @@ public class JsonEventSerializer<TAid, TE> : IEventSerializer<TAid, TE>
     where TAid : IAggregateId
     where TE : IEvent<TAid>
 {
-    [return: NotNull]
     public byte[] Serialize([NotNull] TE @event)
     {
         var jsonString = JsonSerializer.Serialize(@event);
