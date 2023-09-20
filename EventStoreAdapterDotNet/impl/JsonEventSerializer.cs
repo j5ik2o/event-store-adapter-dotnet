@@ -12,9 +12,9 @@ public class JsonEventSerializer<TAid, TE> : IEventSerializer<TAid, TE>
     public byte[] Serialize([NotNull] TE @event)
     {
         var jsonString = JsonSerializer.Serialize(@event);
-        return Encoding.UTF8.GetBytes(jsonString); 
+        return Encoding.UTF8.GetBytes(jsonString);
     }
-    
+
     [return: NotNull]
     public TE Deserialize([NotNull] byte[] bytes)
     {

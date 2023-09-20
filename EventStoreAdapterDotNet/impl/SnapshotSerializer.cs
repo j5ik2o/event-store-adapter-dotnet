@@ -12,7 +12,7 @@ public class SnapshotSerializer<TAid, TA> : ISnapshotSerializer<TAid, TA>
     public byte[] Serialize([NotNull] TA aggregate)
     {
         var jsonString = JsonSerializer.Serialize(aggregate);
-        return Encoding.UTF8.GetBytes(jsonString); 
+        return Encoding.UTF8.GetBytes(jsonString);
     }
 
     [return: NotNull]

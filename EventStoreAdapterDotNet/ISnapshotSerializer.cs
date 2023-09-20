@@ -10,5 +10,5 @@ public interface ISnapshotSerializer<TAid, TA>
     byte[] Serialize([NotNull] TA aggregate);
 
     [return: NotNull]
-    TA Deserialize([NotNull] byte[] bytes); 
+    TA Deserialize([NotNull] byte[] bytes);
 }
