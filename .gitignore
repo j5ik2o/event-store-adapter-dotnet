@@ -1,4 +1,7 @@
 .idea/
 *.iml
 
+bin/
+obj/
+
 .DS_Store
