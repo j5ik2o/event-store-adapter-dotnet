@@ -54,6 +54,8 @@ _dotTrace*
 
 .DS_Store
 
+temp/
+
 # Tests
 *.received.txt
 
