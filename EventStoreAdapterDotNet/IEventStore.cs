@@ -2,17 +2,17 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace EventStoreAdapterDotNet;
 
-public interface IEventStore<TAid,TA, TE>
+public interface IEventStore<TAid, TA, TE>
     where TAid : IAggregateId
-where TA : IAggregate<TA,TAid>
+where TA : IAggregate<TA, TAid>
 where TE : IEvent<TAid>
 {
-    TA? GetLatestSnapshotById([NotNull] TAid aggregateId);
-    
-    List<TE> GetEventsByIdSinceSequenceNumber(
-        [NotNull] TAid aggregateId, long sequenceNumber);
-    
-    void PersistEvent([NotNull] TE @event, long version);
+    Task<TA?> GetLatestSnapshotById([NotNull] TAid aggregateId);
 
-    void PersistEventAndSnapshot([NotNull] TE @event, [NotNull] TA aggregate);
+    Task<List<TE>> GetEventsByIdSinceSequenceNumber(
+        [NotNull] TAid aggregateId, long sequenceNumber);
+
+    Task PersistEvent([NotNull] TE @event, long version);
+
+    Task PersistEventAndSnapshot([NotNull] TE @event, [NotNull] TA aggregate);
 }
