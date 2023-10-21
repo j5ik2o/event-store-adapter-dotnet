@@ -18,12 +18,17 @@ public class EventStoreForDynamoDb<TAid, TA, TE> : IEventStore<TAid, TA, TE>
     private readonly string _journalAidIndexName;
     private readonly string _snapshotAidIndexName;
 
+    private readonly long _shardCount;
+    private readonly IKeyResolver<TAid> _keyResolver;
+
     private readonly IEventSerializer<TAid, TE> _eventSerializer;
     private readonly ISnapshotSerializer<TAid, TA> _snapshotSerializer;
 
     public EventStoreForDynamoDb([NotNull] AmazonDynamoDBClient dynamoDbClient,
         string journalTableName, string snapshotTableName,
         string journalAidIndexName, string snapshotAidIndexName,
+        long shardCount, 
+        IKeyResolver<TAid> keyResolver,
         IEventSerializer<TAid, TE> eventSerializer,
         ISnapshotSerializer<TAid, TA> snapshotSerializer)
     {
@@ -32,6 +37,8 @@ public class EventStoreForDynamoDb<TAid, TA, TE> : IEventStore<TAid, TA, TE>
         _snapshotTableName = snapshotTableName;
         _journalAidIndexName = journalAidIndexName;
         _snapshotAidIndexName = snapshotAidIndexName;
+        _shardCount = shardCount;
+        _keyResolver = keyResolver;
         _eventSerializer = eventSerializer;
         _snapshotSerializer = snapshotSerializer;
     }
@@ -74,13 +81,11 @@ public class EventStoreForDynamoDb<TAid, TA, TE> : IEventStore<TAid, TA, TE>
             TableName = _journalTableName,
             IndexName = _journalAidIndexName,
             KeyConditionExpression = "#aid = :aid AND #seq_nr >= :seq_nr",
-            ExpressionAttributeNames = new Dictionary<string, string>
-            {
+            ExpressionAttributeNames = new Dictionary<string, string> {
                 { "#aid", "aid" },
                 { "#seq_nr", "seq_nr" }
             },
-            ExpressionAttributeValues = new Dictionary<string, AttributeValue>
-            {
+            ExpressionAttributeValues = new Dictionary<string, AttributeValue> {
                 { ":aid", new AttributeValue{ S = aggregateId.AsString() } },
                 { ":seq_nr", new AttributeValue{ N = sequenceNumber.ToString() } }
             }
@@ -89,6 +94,42 @@ public class EventStoreForDynamoDb<TAid, TA, TE> : IEventStore<TAid, TA, TE>
         return response.Items.Select(element => element!["payload"].B.GetBuffer())
             .Select(payloadBytes => _eventSerializer.Deserialize(payloadBytes)).ToList();
     }
+
+    private Put putSnapshot([NotNull] TE @event, long sequenceNumber, TA aggregate)
+    {
+        var pkey = _keyResolver.ResolvePartitionKey(@event.AggregateId, _shardCount);
+        var skey = _keyResolver.ResolveSortKey(@event.AggregateId, sequenceNumber);
+        var payload = _snapshotSerializer.Serialize(aggregate);
+        var put = new Put {
+            TableName = _snapshotTableName,
+            Item = new Dictionary<string, AttributeValue>()
+            {
+                 { "pkey", new AttributeValue(pkey) },
+                 { "skey", new AttributeValue(skey) },
+                 { "payload", new AttributeValue { B = new MemoryStream(payload) }},
+                 { "aid", new AttributeValue(@event.AggregateId.AsString()) },
+                 { "seq_nr", new AttributeValue(sequenceNumber.ToString()) },
+                 { "version", new AttributeValue{ N = "1" } },
+                 { "ttl", new AttributeValue{ N = "0" } },
+                 { "last_updated_at", new AttributeValue(){ N = @event.OccurredAt.Millisecond.ToString() }} 
+            },
+            ConditionExpression = "attribute_not_exists(pkey) AND attribute_not_exists(skey)"
+        };
+        return put;
+    }
+
+    private Update updateSnapshot([NotNull] TE @event, long sequenceNumber, long version, TA? aggregate)
+    {
+        var pkey = _keyResolver.ResolvePartitionKey(@event.AggregateId, _shardCount);
+        var skey = _keyResolver.ResolveSortKey(@event.AggregateId, sequenceNumber);
+        
+        return null;
+    }
+
+    private Task createEventAndSnapshot([NotNull] TE @event, [NotNull] TA aggregate)
+    {
+        throw new NotImplementedException();
+    } 
 
     public Task PersistEvent([NotNull] TE @event, long version)
     {

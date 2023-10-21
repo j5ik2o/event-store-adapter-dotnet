@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace EventStoreAdapterDotNet.impl;
 
-public class JsonEventSerializer<TAid, TE> : IEventSerializer<TAid, TE>
+public class DefaultEventSerializer<TAid, TE> : IEventSerializer<TAid, TE>
     where TAid : IAggregateId
     where TE : IEvent<TAid>
 {
