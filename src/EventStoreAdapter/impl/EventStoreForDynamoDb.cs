@@ -10,7 +10,6 @@ public class EventStoreForDynamoDb<TAid, TA, TE> : IEventStore<TAid, TA, TE>
     where TA : IAggregate<TA, TAid>
     where TE : IEvent<TAid>
 {
-    [NotNull]
     private readonly AmazonDynamoDBClient _dynamoDbClient;
 
     private readonly string _journalTableName;
@@ -27,7 +26,7 @@ public class EventStoreForDynamoDb<TAid, TA, TE> : IEventStore<TAid, TA, TE>
     public EventStoreForDynamoDb([NotNull] AmazonDynamoDBClient dynamoDbClient,
         string journalTableName, string snapshotTableName,
         string journalAidIndexName, string snapshotAidIndexName,
-        long shardCount, 
+        long shardCount,
         IKeyResolver<TAid> keyResolver,
         IEventSerializer<TAid, TE> eventSerializer,
         ISnapshotSerializer<TAid, TA> snapshotSerializer)
@@ -57,8 +56,8 @@ public class EventStoreForDynamoDb<TAid, TA, TE> : IEventStore<TAid, TA, TE>
             },
             ExpressionAttributeValues = new Dictionary<string, AttributeValue>
             {
-                { ":aid", new AttributeValue{ S = aggregateId.AsString() }},
-                { ":seq_r", new AttributeValue{ N = "0" }}
+                { ":aid", new AttributeValue { S = aggregateId.AsString() } },
+                { ":seq_r", new AttributeValue { N = "0" } }
             },
             Limit = 1,
         };
@@ -67,6 +66,7 @@ public class EventStoreForDynamoDb<TAid, TA, TE> : IEventStore<TAid, TA, TE>
         {
             return default;
         }
+
         var versionString = result.Items[0]["version"].N!;
         var version = long.Parse(versionString);
         var payloadBytes = result.Items[0]["payload"].B.GetBuffer();
@@ -81,13 +81,15 @@ public class EventStoreForDynamoDb<TAid, TA, TE> : IEventStore<TAid, TA, TE>
             TableName = _journalTableName,
             IndexName = _journalAidIndexName,
             KeyConditionExpression = "#aid = :aid AND #seq_nr >= :seq_nr",
-            ExpressionAttributeNames = new Dictionary<string, string> {
+            ExpressionAttributeNames = new Dictionary<string, string>
+            {
                 { "#aid", "aid" },
                 { "#seq_nr", "seq_nr" }
             },
-            ExpressionAttributeValues = new Dictionary<string, AttributeValue> {
-                { ":aid", new AttributeValue{ S = aggregateId.AsString() } },
-                { ":seq_nr", new AttributeValue{ N = sequenceNumber.ToString() } }
+            ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+            {
+                { ":aid", new AttributeValue { S = aggregateId.AsString() } },
+                { ":seq_nr", new AttributeValue { N = sequenceNumber.ToString() } }
             }
         };
         var response = await _dynamoDbClient.QueryAsync(request);
@@ -95,49 +97,171 @@ public class EventStoreForDynamoDb<TAid, TA, TE> : IEventStore<TAid, TA, TE>
             .Select(payloadBytes => _eventSerializer.Deserialize(payloadBytes)).ToList();
     }
 
-    private Put putSnapshot([NotNull] TE @event, long sequenceNumber, TA aggregate)
+    private Put GeneratePutJournalRequest(TE @event)
+    {
+        var pkey = _keyResolver.ResolvePartitionKey(@event.AggregateId, _shardCount);
+        var skey = _keyResolver.ResolveSortKey(@event.AggregateId, @event.SequenceNumber);
+        var aid = @event.AggregateId.AsString();
+        var sequenceNumber = @event.SequenceNumber;
+        var payload = _eventSerializer.Serialize(@event);
+        var occurredAt = @event.OccurredAt.Millisecond;
+
+        var put = new Put
+        {
+            TableName = _journalTableName,
+            Item = new Dictionary<string, AttributeValue>
+            {
+                { "pkey", new AttributeValue(pkey) },
+                { "skey", new AttributeValue(skey) },
+                { "aid", new AttributeValue(@event.AggregateId.AsString()) },
+                { "seq_nr", new AttributeValue { N = sequenceNumber.ToString() } },
+                { "payload", new AttributeValue { B = new MemoryStream(payload) } },
+                { "occurred_at", new AttributeValue { N = occurredAt.ToString() } }
+            }
+        };
+        return put;
+    }
+
+    private Put GeneratePutSnapshotRequest([NotNull] TE @event, long sequenceNumber, TA aggregate)
     {
         var pkey = _keyResolver.ResolvePartitionKey(@event.AggregateId, _shardCount);
         var skey = _keyResolver.ResolveSortKey(@event.AggregateId, sequenceNumber);
         var payload = _snapshotSerializer.Serialize(aggregate);
-        var put = new Put {
+        var put = new Put
+        {
             TableName = _snapshotTableName,
-            Item = new Dictionary<string, AttributeValue>()
+            Item = new Dictionary<string, AttributeValue>
             {
-                 { "pkey", new AttributeValue(pkey) },
-                 { "skey", new AttributeValue(skey) },
-                 { "payload", new AttributeValue { B = new MemoryStream(payload) }},
-                 { "aid", new AttributeValue(@event.AggregateId.AsString()) },
-                 { "seq_nr", new AttributeValue(sequenceNumber.ToString()) },
-                 { "version", new AttributeValue{ N = "1" } },
-                 { "ttl", new AttributeValue{ N = "0" } },
-                 { "last_updated_at", new AttributeValue(){ N = @event.OccurredAt.Millisecond.ToString() }} 
+                { "pkey", new AttributeValue(pkey) },
+                { "skey", new AttributeValue(skey) },
+                { "payload", new AttributeValue { B = new MemoryStream(payload) } },
+                { "aid", new AttributeValue(@event.AggregateId.AsString()) },
+                { "seq_nr", new AttributeValue { N = sequenceNumber.ToString() } },
+                { "version", new AttributeValue { N = "1" } },
+                { "ttl", new AttributeValue { N = "0" } },
+                { "last_updated_at", new AttributeValue() { N = @event.OccurredAt.Millisecond.ToString() } }
             },
             ConditionExpression = "attribute_not_exists(pkey) AND attribute_not_exists(skey)"
         };
         return put;
     }
 
-    private Update updateSnapshot([NotNull] TE @event, long sequenceNumber, long version, TA? aggregate)
+    private Update GenerateUpdateSnapshotRequest([NotNull] TE @event, long sequenceNumber, long version, TA? aggregate)
     {
         var pkey = _keyResolver.ResolvePartitionKey(@event.AggregateId, _shardCount);
         var skey = _keyResolver.ResolveSortKey(@event.AggregateId, sequenceNumber);
-        
-        return null;
+        var update = new Update
+        {
+            TableName = _snapshotTableName,
+            UpdateExpression = "SET #version=:after_version, #last_updated_at=:last_updated_at",
+            Key = new Dictionary<string, AttributeValue>
+            {
+                { "pkey", new AttributeValue(pkey) },
+                { "skey", new AttributeValue(skey) }
+            },
+            ExpressionAttributeNames = new Dictionary<string, string>
+            {
+                { "#version", "version" },
+                { "#last_updated_at", "last_updated_at" }
+            },
+            ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+            {
+                { ":before_version", new AttributeValue { N = version.ToString() } },
+                { ":after_version", new AttributeValue { N = (version + 1).ToString() } },
+                { ":last_updated_at", new AttributeValue { N = @event.OccurredAt.Millisecond.ToString() } }
+            },
+            ConditionExpression = "#version = :before_version"
+        };
+        if (aggregate == null) return update;
+        var payload = _snapshotSerializer.Serialize(aggregate);
+        update.UpdateExpression =
+            "SET #payload=:payload, #seq_nr=:seq_nr, #version=:after_version, #last_updated_at=:last_updated_at";
+        update.ExpressionAttributeNames = update.ExpressionAttributeNames.Union(new Dictionary<string, string>
+        {
+            { "#seq_nr", "seq_nr" },
+            { "#payload", "payload" }
+        }).ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+        update.ExpressionAttributeValues = update.ExpressionAttributeValues.Union(
+            new Dictionary<string, AttributeValue>
+            {
+                {
+                    ":seq_nr", new AttributeValue
+                    {
+                        N = sequenceNumber.ToString()
+                    }
+                },
+                {
+                    ":payload",
+                    new AttributeValue
+                    {
+                        B = new MemoryStream(payload)
+                    }
+                }
+            }).ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
+        return update;
     }
 
-    private Task createEventAndSnapshot([NotNull] TE @event, [NotNull] TA aggregate)
+    private Task CreateEventAndSnapshot([NotNull] TE @event, [NotNull] TA aggregate)
     {
-        throw new NotImplementedException();
-    } 
+        var transactItems = new List<TransactWriteItem>
+        {
+            new()
+            {
+                Put = GeneratePutSnapshotRequest(@event, 0, aggregate),
+            },
+            new()
+            {
+                Put = GeneratePutJournalRequest(@event),
+            }
+        };
+        var request = new TransactWriteItemsRequest
+        {
+            TransactItems = transactItems
+        };
+        // TODO: keepSnapshot
+        var result = _dynamoDbClient.TransactWriteItemsAsync(request);
+        return result.ContinueWith(_ => { });
+    }
+
+    private Task UpdateEventAndSnapshotOpt([NotNull] TE @event, long version, TA? aggregate)
+    {
+        var transactItems = new List<TransactWriteItem>
+        {
+            new()
+            {
+                Update = GenerateUpdateSnapshotRequest(@event, 0, version, aggregate),
+            },
+            new()
+            {
+                Put = GeneratePutJournalRequest(@event),
+            }
+        };
+        // TODO: keepSnapshot
+        var request = new TransactWriteItemsRequest
+        {
+            TransactItems = transactItems
+        };
+        var result = _dynamoDbClient.TransactWriteItemsAsync(request);
+        return result.ContinueWith(_ => { });
+    }
 
     public Task PersistEvent([NotNull] TE @event, long version)
     {
-        throw new NotImplementedException();
+        if (@event.IsCreated)
+        {
+            throw new ArgumentException("@event is created type.");
+        }
+        return UpdateEventAndSnapshotOpt(@event, version, default);
     }
 
     public Task PersistEventAndSnapshot([NotNull] TE @event, [NotNull] TA aggregate)
     {
-        throw new NotImplementedException();
+        if (@event.IsCreated)
+        {
+            return CreateEventAndSnapshot(@event, aggregate);
+        } else {
+            return UpdateEventAndSnapshotOpt(@event, aggregate.Version, aggregate);
+        }
     }
 }

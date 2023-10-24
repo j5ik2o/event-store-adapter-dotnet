@@ -11,4 +11,6 @@ public interface IEvent<out TAid>
     long SequenceNumber { get;  }
 
     DateTimeOffset OccurredAt { get; }
+    
+    bool IsCreated { get; }
 }
