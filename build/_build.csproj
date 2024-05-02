@@ -19,7 +19,7 @@
     <LangVersion>10.0</LangVersion>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.302.6" />
+    <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.302.26" />
     <PackageReference Include="Nuke.Common" Version="7.0.6" />
   </ItemGroup>
 
