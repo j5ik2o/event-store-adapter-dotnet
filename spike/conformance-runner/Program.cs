@@ -298,9 +298,11 @@ static class Runner
                         ? $"no error returned; journal holds aid of {Encoding.UTF8.GetByteCount(stored.FirstOrDefault() ?? "")} bytes (expected {expect["error"]!["rule"]})"
                         : $"{error.GetType().Name} cannot be classified (E-1)", null);
                 var want = expect["value"]!.GetValue<string>();
+                if (stored.Count == 0)
+                    return R(Status.Failed, "nothing stored and no error returned: the WIP sort key ${aid}-${seq_nr} exceeds DynamoDB's 1024-byte limit (T-12, DY-17)", null);
                 return stored.SequenceEqual([want])
                     ? R(Status.Passed, "", null)
-                    : R(Status.Failed, $"stored aid is the user's AsString() '{Trim(stored.FirstOrDefault())}', expected '{Trim(want)}' (T-1)", null);
+                    : R(Status.Failed, $"stored aid is the user's AsString() '{Trim(stored[0])}', expected '{Trim(want)}' (T-1)", null);
             }
             case "validateSeqNr":
             {
@@ -489,6 +491,25 @@ static class Runner
         catch (Exception x) { staleError = x; }
         var count = (await client.ScanAsync(new ScanRequest { TableName = session.Journal })).Items.Count;
         Console.WriteLine($"update with a wrong version: {(staleError == null ? "returned without error" : staleError.GetType().Name)}; journal items now {count}");
+
+        var longAid = new Aid { TypeName = "T", Value = new string('a', 1021) };
+        try
+        {
+            await client.PutItemAsync(new PutItemRequest
+            {
+                TableName = session.Journal,
+                Item = new()
+                {
+                    ["pkey"] = new AttributeValue("T-0"),
+                    ["skey"] = new AttributeValue(new DefaultKeyResolver<Aid>().ResolveSortKey(longAid, 1)),
+                },
+            });
+            Console.WriteLine("1023-byte aid: direct PutItem with the WIP sort key succeeded");
+        }
+        catch (AmazonDynamoDBException x)
+        {
+            Console.WriteLine($"1023-byte aid: direct PutItem with the WIP sort key fails: {x.ErrorCode}: {x.Message}");
+        }
         return 0;
     }
 }
